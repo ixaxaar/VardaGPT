@@ -1,0 +1,53 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 22.3.0
+    hooks:
+      - id: black
+        args: [--line-length=120]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+      - id: check-json
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v2.6.2
+    hooks:
+      - id: prettier
+        args:
+          - --print-width=80
+          - --prose-wrap=always
+          - --tab-width=2
+          - --single-quote=true
+          - --no-bracket-spacing=true
+          - --trailing-comma=es5
+        files: \.(md|json)$
+        additional_dependencies:
+          - "prettier@2.6.2"
+
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.9.0
+    hooks:
+      - id: python-check-blanket-noqa
+      - id: python-check-mock-methods
+      - id: python-use-type-annotations
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 4.0.1
+    hooks:
+      - id: flake8
+        additional_dependencies:
+          - flake8-bugbear
+          - flake8-builtins
+          - flake8-comprehensions
+          - pep8-naming
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.920
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-requests

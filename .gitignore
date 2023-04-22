@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.mo
+/venv
+.env
+env.production
+env.devtest
+.DS_Store
+._*
+*.log
+!.vscode/settings.json
+.vscode/launch.json
+docker-compose.yml
+geo
+.vscode/
+.coverage
