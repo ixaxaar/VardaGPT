@@ -1,5 +1,6 @@
 import faiss
 import numpy as np
+import numpy.typing as npt
 from typing import Any
 
 from . import Memory
@@ -41,16 +42,16 @@ class AssociativeMemory(Memory):
 
         self.index.train(np.zeros((memory_size, embedding_dim), dtype=np.float32))
 
-    def add(self, embeddings: np.typing.NDArray[Any]) -> None:
+    def add(self, embeddings: npt.NDArray[Any]) -> None:
         self.index.add(embeddings)
 
-    def remove(self, ids: np.typing.NDArray[Any]) -> None:
+    def remove(self, ids: npt.NDArray[Any]) -> None:
         self.index.remove_ids(ids)
 
-    def update(self, ids: np.typing.NDArray[Any], updated_embeddings: np.typing.NDArray[Any]) -> None:
+    def update(self, ids: npt.NDArray[Any], updated_embeddings: npt.NDArray[Any]) -> None:
         self.remove(ids)
         self.add(updated_embeddings)
 
-    def search(self, query_vectors: np.typing.NDArray[Any], k: int = 10) -> Any:
+    def search(self, query_vectors: npt.NDArray[Any], k: int = 10) -> Any:
         distances, indices = self.index.search(query_vectors, k)
         return indices
