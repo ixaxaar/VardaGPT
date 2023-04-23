@@ -1,5 +1,32 @@
 # VardaGPT
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [VardaGPT](#vardagpt)
+  - [Overview](#overview)
+  - [Training, Evaluation, and Fine-tuning Process](#training-evaluation-and-fine-tuning-process)
+    - [1. Data Preparation](#1-data-preparation)
+    - [2. GPT-2 Model Adaptation](#2-gpt-2-model-adaptation)
+    - [3. Training](#3-training)
+    - [4. Evaluation](#4-evaluation)
+    - [5. Fine-tuning (if necessary)](#5-fine-tuning-if-necessary)
+  - [Prerequisites](#prerequisites)
+  - [Setup](#setup)
+  - [Directory Structure](#directory-structure)
+  - [Usage](#usage)
+    - [Data Preparation](#data-preparation)
+    - [Training](#training)
+    - [Evaluation](#evaluation)
+    - [Inference](#inference)
+  - [Contributing](#contributing)
+  - [Code Formatting and Pre-commit](#code-formatting-and-pre-commit)
+    - [Setup](#setup-1)
+    - [Using Pre-commit](#using-pre-commit)
+  - [License](#license)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 VardaGPT is a memory-enhanced GPT-2 model powered by Hugging Face Transformers
 and FAISS. Inspired by J.R.R. Tolkien's Silmarillion, VardaGPT aims to provide
 guidance and knowledge through its memory-augmented text generation
