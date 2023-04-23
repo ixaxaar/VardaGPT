@@ -11,7 +11,7 @@ def test_add_and_search():
     memory.add(embeddings)
 
     query_vectors = np.random.rand(5, 768).astype(np.float32)
-    indices = memory.search(query_vectors)
+    indices, distances = memory.search(query_vectors)
 
     assert indices.shape == (5, 10)
 
@@ -27,7 +27,7 @@ def test_update():
     memory.update(element_id, updated_embedding)
 
     query_vectors = np.random.rand(1, 768).astype(np.float32)
-    indices = memory.search(query_vectors)
+    indices, distances = memory.search(query_vectors)
 
     assert 0 not in indices[0]
 
@@ -41,6 +41,6 @@ def test_refresh_memory():
     memory.refresh()
 
     query_vectors = np.random.rand(5, 768).astype(np.float32)
-    indices = memory.search(query_vectors)
+    indices, distances = memory.search(query_vectors)
 
     assert indices.shape == (5, 10)

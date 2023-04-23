@@ -36,6 +36,7 @@ pathspec==0.11.1
 platformdirs==3.2.0
 pluggy==1.0.0
 pycodestyle==2.10.0
+pydantic==1.10.7
 pyflakes==3.0.1
 pytest==7.3.1
 pytest-cov==4.0.0
