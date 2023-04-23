@@ -40,6 +40,8 @@ package "VardaGPT" {
 @enduml
 ```
 
+![overview](./assets/README.svg)
+
 This diagram shows the main components of the VardaGPT project and their
 interactions. The Data Preparation component processes the dataset and feeds it
 to both the FAISS Memory Model and the GPT-2 Model Adaptation component. The
@@ -102,6 +104,8 @@ stop
 
 @enduml
 ```
+
+![process](./assets/README_001.svg)
 
 ### 1. Data Preparation
 
