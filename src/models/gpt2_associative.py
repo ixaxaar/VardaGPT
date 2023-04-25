@@ -5,7 +5,7 @@ from memory.associative import AssociativeMemory
 from typing import Optional, Any
 
 
-class VardaGPTAssociative(nn.Module):  # type: ignore
+class VardaGPTAssociative(nn.Module):
     def __init__(
         self,
         gpt2_model_name: str = "gpt2-small",
