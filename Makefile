@@ -40,6 +40,9 @@ precommit:
 format:
 	pre-commit run --all-files
 
+test:
+	coverage run -m pytest --log-cli-level=DEBUG --capture=tee-sys -v .
+
 clean:
 	rm -rf venv/
 	find . -type f -name "*.pyc" -exec rm -f {} \;

@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 from transformers import GPT2LMHeadModel, GPT2Config
-from memory.associative import AssociativeMemory
+from ..memory.associative import AssociativeMemory
 from typing import Optional, Any
 
 
 class VardaGPTAssociative(nn.Module):
     def __init__(
         self,
-        gpt2_model_name: str = "gpt2-small",
+        gpt2_model_name: str = "gpt2",
         memory_size: int = 10000,
         memory_dim: int = 768,
         index_type: str = "flat",
@@ -51,6 +51,7 @@ class VardaGPTAssociative(nn.Module):
 
     def forward(self, input_vectors: torch.Tensor, memory_input: Optional[torch.Tensor] = None) -> Any:
         input_vectors = input_vectors.to(self.device)
+        batch_size, seq_len, _ = input_vectors.shape
 
         # Search for relevant results if memory_input is provided
         if memory_input is not None:
@@ -59,6 +60,7 @@ class VardaGPTAssociative(nn.Module):
             # Retrieve and concatenate search results with input vectors
             search_results = self.memory.get_all_embeddings()[indices].reshape(-1, self.search_results_dim)
             search_results = torch.tensor(search_results).to(self.device)
+            search_results = search_results.view(batch_size, seq_len, -1)  # Add this line to reshape search_results
             concatenated_input = torch.cat([input_vectors, search_results], dim=-1)
 
             # Pass concatenated input through linear layer
@@ -81,18 +83,19 @@ class VardaGPTAssociative(nn.Module):
         store_threshold = 0.5  # Define a threshold for store decision
         store_mask = (store_decision > store_threshold).float()
         storable_vector_to_store = storable_vector * store_mask
-        self.memory.add(storable_vector_to_store)
+        self.memory.add(storable_vector_to_store.view(batch_size * seq_len, -1).detach().cpu().numpy())
 
-        # Calculate the L2 distances between deletable_vector and search_results
-        expanded_deletable_vector = deletable_vector.unsqueeze(1).expand(-1, self.num_search_results, -1)
-        expanded_search_results = search_results.unsqueeze(0).expand(input_vectors.size(0), -1, -1)
-        squared_distances = torch.sum((expanded_deletable_vector - expanded_search_results) ** 2, dim=-1)
-        l2_distances = torch.sqrt(squared_distances)
+        # Calculate the L2 distances between deletable_vector and search_results only if memory_input is provided
+        if memory_input is not None:
+            expanded_deletable_vector = deletable_vector.unsqueeze(1).expand(-1, self.num_search_results, -1)
+            expanded_search_results = search_results.unsqueeze(0).expand(input_vectors.size(0), -1, -1)
+            squared_distances = torch.sum((expanded_deletable_vector - expanded_search_results) ** 2, dim=-1)
+            l2_distances = torch.sqrt(squared_distances)
 
-        # Remove embeddings from the memory if the L2 distance is above a threshold
-        threshold = 0.5
-        indices_to_delete = torch.nonzero(l2_distances > threshold, as_tuple=True)
-        indices_to_delete_flat = indices_to_delete[0].view(-1)
-        self.memory.remove(indices_to_delete_flat.cpu().numpy())
+            # Remove embeddings from the memory if the L2 distance is above a threshold
+            threshold = 0.5
+            indices_to_delete = torch.nonzero(l2_distances > threshold, as_tuple=True)
+            indices_to_delete_flat = indices_to_delete[0].view(-1)
+            self.memory.remove(indices_to_delete_flat.cpu().numpy())
 
         return logits

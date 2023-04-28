@@ -34,17 +34,21 @@ def test_age_memory(forgetful_memory):
     assert np.allclose(embeddings * 0.5, aged_embeddings)
 
 
-def test_forget_randomly(memory):
+def test_forget_randomly(forgetful_memory):
     # Add some embeddings to the memory
-    embeddings = np.random.random((10, memory.embedding_dim)).astype(np.float32)
-    memory.add(embeddings)
+    embeddings = np.random.random((100, forgetful_memory.embedding_dim)).astype(np.float32)
+    forgetful_memory.add(embeddings)
 
     # Forget randomly
-    memory.forget_randomly()
+    forgetful_memory.forget_randomly()
 
     # Check if the number of embeddings in memory has decreased
-    remaining_embeddings = memory.get_all_embeddings()
-    assert remaining_embeddings.shape[0] <= embeddings.shape[0]
+    remaining_embeddings = forgetful_memory.get_all_embeddings()
+    expected_remaining_embeddings = int(embeddings.shape[0] * (1 - forgetful_memory.forgetfulness_factor))
+    assert (
+        remaining_embeddings.shape[0] == expected_remaining_embeddings
+        or remaining_embeddings.shape[0] == expected_remaining_embeddings + 1
+    )
 
 
 def test_garbage_collect(memory):
@@ -59,3 +63,4 @@ def test_garbage_collect(memory):
     assert len(removed_indices) == len(nearly_zero_embeddings)
     remaining_embeddings = memory.get_all_embeddings()
     assert remaining_embeddings.shape[0] == 0
+    assert np.array_equal(removed_indices, np.arange(len(nearly_zero_embeddings)))

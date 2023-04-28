@@ -28,8 +28,7 @@ def test_associative_memory_add_remove_update_search(index_type):
 
     assert search_results.shape == (query_vectors.shape[0], k)
 
-    non_updatable_indices = ["compressed", "graph"]
-    if index_type not in non_updatable_indices:
+    if index_type == "flat":
         # Remove some embeddings from memory
         ids_to_remove = np.array([2, 5, 10, 30, 50])
         memory.remove(ids_to_remove)
@@ -44,3 +43,10 @@ def test_associative_memory_add_remove_update_search(index_type):
         updated_search_results, updated_distances = memory.search(updated_embeddings, k=1)
         for i, _ in enumerate(ids_to_update):
             assert np.isclose(updated_distances[i, 0], 0, atol=1e-6)
+
+    elif index_type in ["compressed", "graph"]:
+        with pytest.raises(ValueError):
+            memory.remove(np.array([0]))
+
+        with pytest.raises(ValueError):
+            memory.update(np.array([0]), np.random.random((1, embedding_dim)).astype(np.float32))

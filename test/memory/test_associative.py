@@ -44,3 +44,14 @@ def test_refresh_memory():
     indices, distances = memory.search(query_vectors)
 
     assert indices.shape == (5, 10)
+
+
+def test_getitem():
+    memory = AssociativeMemory(memory_size=50000, embedding_dim=768)
+
+    embeddings = np.random.rand(1000, 768).astype(np.float32)
+    memory.add(embeddings)
+
+    # Test __getitem__ method
+    retrieved_vector = memory[5]
+    assert np.allclose(retrieved_vector, embeddings[5])

@@ -54,8 +54,18 @@ class AssociativeMemory(Memory):
         # Train the index with empty data
         self.index.train(np.zeros((max(memory_size, num_clusters), embedding_dim), dtype=np.float32))
 
+        # Initialize an empty array to store the input vectors
+        self.input_vectors = np.zeros((memory_size, embedding_dim), dtype=np.float32)
+
     def add(self, embeddings: npt.NDArray[Any]) -> None:
         """Add embeddings to the memory."""
+        n_added = self.index.ntotal  # Existing number of added items
+        n_to_add = embeddings.shape[0]  # Number of items to add
+
+        # Update the input_vectors array with the new embeddings
+        self.input_vectors[n_added : n_added + n_to_add] = embeddings
+
+        # Add embeddings to the index
         self.index.add(embeddings)
 
     def remove(self, ids: npt.NDArray[Any]) -> None:
@@ -65,6 +75,9 @@ class AssociativeMemory(Memory):
                 f"Update is not implemented in FAISS this type of index, use flat instad of: {self.index_type}"
             )
         self.index.remove_ids(ids)
+
+        # Remove input vectors from the input_vectors array
+        self.input_vectors = np.delete(self.input_vectors, ids, axis=0)
 
     def update(self, ids: npt.NDArray[Any], updated_embeddings: npt.NDArray[Any]) -> None:
         """Update embeddings with the specified IDs in the memory."""
@@ -141,10 +154,11 @@ class AssociativeMemory(Memory):
 
     def get_all_embeddings(self) -> npt.NDArray[Any]:
         """Retrieve all embeddings stored in the memory."""
-        if isinstance(self.index, faiss.IndexIVFFlat):
-            all_embeddings = np.zeros((self.index.ntotal, self.embedding_dim), dtype=np.float32)
-            for idx in range(self.index.ntotal):
-                all_embeddings[idx] = self.index.reconstruct(idx)
-            return all_embeddings
-        else:
-            raise NotImplementedError("get_all_embeddings is not implemented for this index type")
+        # Return the stored input_vectors directly
+        return self.input_vectors[: self.index.ntotal]  # Use slicing to get only the added items
+
+    def __getitem__(self, index: int) -> npt.NDArray[Any]:
+        """Retrieve the input vector at the specified index."""
+        if index >= self.index.ntotal:
+            raise IndexError("Index out of range.")
+        return self.input_vectors[index]
