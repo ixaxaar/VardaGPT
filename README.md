@@ -5,6 +5,7 @@
 
 - [VardaGPT](#vardagpt)
   - [Overview](#overview)
+  - [Models](#models)
   - [Training, Evaluation, and Fine-tuning Process](#training-evaluation-and-fine-tuning-process)
     - [1. Data Preparation](#1-data-preparation)
     - [2. GPT-2 Model Adaptation](#2-gpt-2-model-adaptation)
@@ -33,6 +34,9 @@ guidance and knowledge through its memory-augmented text generation
 capabilities.
 
 ## Overview
+
+<details>
+  <summary>Click me</summary>
 
 ```plantuml
 @startuml
@@ -67,6 +71,8 @@ package "VardaGPT" {
 @enduml
 ```
 
+</details>
+
 ![overview](./assets/README.svg)
 
 This diagram shows the main components of the VardaGPT project and their
@@ -78,7 +84,184 @@ is then trained and evaluated, and the final trained model is used in the
 Inference and Application component. The user provides the dataset and prompts
 for text generation.
 
+## Models
+
+The associative memory model:
+
+<details>
+  <summary>Click me</summary>
+
+```plantuml
+@startuml
+title Forward Function
+
+actor "input_vectors" as input_vectors #AFEEEE
+actor "memory_input" as memory_input #AFEEEE
+
+note right of input_vectors
+  (batch_size, seq_len, embedding_dim)
+end note
+
+note right of memory_input
+  (batch_size, seq_len, embedding_dim)
+end note
+
+rectangle "if memory_input is provided" {
+  input_vectors -down-> concat : "concatenate input_vectors\nand search_results"
+  memory_input -> search : "search(memory_input)"
+  search --> embeddings : "get_all_embeddings()"
+  embeddings -> search_results : "search_results"
+  search_results -up-> concat
+}
+
+concat -> transformer : "pass through GPT-2 transformer"
+transformer --> hidden_states : "hidden_states"
+note right of hidden_states
+  (batch_size, seq_len, embedding_dim)
+end note
+
+hidden_states --> logits : "get logits"
+note right of logits
+  (batch_size, seq_len, vocab_size)
+end note
+
+hidden_states --> decisions_and_vectors : "calculate decisions\nand vectors"
+decisions_and_vectors --> store_memory : "store storable_vector"
+decisions_and_vectors --> delete_memory : "delete embeddings"
+
+logits --> return_logits : "return logits"
+
+@enduml
+```
+
+</details>
+
+![model1](./assets/README_001.svg)
+
+<details>
+  <summary>Click me</summary>
+
+```plantuml
+@startuml
+title Forward Function
+
+!define Tensor(t,d) t + " (" + d + ")"
+!define DEVICE "device"
+
+actor "input_vectors" as input_vectors
+actor "memory_input" as memory_input
+
+note right of input_vectors
+  Tensor:
+  (batch_size, seq_len, embedding_dim)
+end note
+
+note right of memory_input
+  Tensor (optional):
+  (batch_size, seq_len, embedding_dim)
+end note
+
+input_vectors -> DEVICE
+memory_input -> DEVICE
+
+DEVICE -> "search(memory_input)" as search
+search --> "indices, distances" as search_result
+note right of search_result
+  Tensors:
+  indices: (batch_size, seq_len, num_search_results)
+  distances: (batch_size, seq_len, num_search_results)
+end note
+
+search_result -> "get_all_embeddings()" as all_embeddings
+note right of all_embeddings
+  Tensor:
+  (memory_size, embedding_dim)
+end note
+
+all_embeddings -> "search_results" as search_results
+note right of search_results
+  Tensor:
+  (batch_size, seq_len, search_results_dim)
+end note
+
+search_results --> "concatenate(input_vectors, search_results)" as concatenated_input
+note right of concatenated_input
+  Tensor:
+  (batch_size, seq_len, embedding_dim + search_results_dim)
+end note
+
+concatenated_input --> "self.fc(concatenated_input)" as fc_output
+note right of fc_output
+  Tensor:
+  (batch_size, seq_len, embedding_dim)
+end note
+
+fc_output --> "self.gpt2_model.transformer(inputs_embeds=input_vectors)" as transformer_outputs
+transformer_outputs --> "hidden_states" as hidden_states
+note right of hidden_states
+  Tensor:
+  (batch_size, seq_len, embedding_dim)
+end note
+
+hidden_states --> "self.gpt2_model.lm_head(hidden_states)" as logits
+note right of logits
+  Tensor:
+  (batch_size, seq_len, vocab_size)
+end note
+
+hidden_states --> "self.fc_storable_vector(hidden_states)" as storable_vector
+note right of storable_vector
+  Tensor:
+  (batch_size, seq_len, memory_dim)
+end note
+
+hidden_states --> "self.fc_store_decision(hidden_states)" as store_decision
+note right of store_decision
+  Tensor:
+  (batch_size, seq_len, 1)
+end note
+
+hidden_states --> "self.fc_delete_decision(hidden_states)" as delete_decision
+note right of delete_decision
+  Tensor:
+  (batch_size, seq_len, num_search_results)
+end note
+
+hidden_states --> "self.fc_deletable_vector(hidden_states)" as deletable_vector
+note right of deletable_vector
+  Tensor:
+  (batch_size, seq_len, memory_dim)
+end note
+
+storable_vector --> "self.memory.add(storable_vector_to_store)" as add_memory
+
+deletable_vector --> "calculate L2 distances" as l2_distances
+note right of l2_distances
+  Tensor:
+  (batch_size, num_search_results)
+end note
+
+l2_distances --> "threshold comparison" as threshold_comparison
+note right of threshold_comparison
+  Tensor (bool):
+  (batch_size, num_search_results)
+end note
+
+threshold_comparison --> "self.memory.remove(indices_to_delete_flat)" as remove_memory
+
+logits --> "return logits" as return_logits
+
+@enduml
+```
+
+</details>
+
+![model](./assets/README_002.svg)
+
 ## Training, Evaluation, and Fine-tuning Process
+
+<details>
+  <summary>Click me</summary>
 
 ```plantuml
 @startuml
@@ -132,7 +315,9 @@ stop
 @enduml
 ```
 
-![process](./assets/README_001.svg)
+</details>
+
+![process](./assets/README_003.svg)
 
 ### 1. Data Preparation
 
