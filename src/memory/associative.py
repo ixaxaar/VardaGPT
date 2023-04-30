@@ -20,6 +20,20 @@ class AssociativeMemory(Memory):
         gpu_device: int = 0,
         forgetfulness_factor: float = 1,
     ):
+        """
+        Initialize the associative memory.
+
+        :param memory_size: The maximum number of items the memory can store.
+        :param embedding_dim: The dimensionality of the input embeddings.
+        :param index_type: The type of FAISS index to use (default: 'flat').
+        :param num_clusters: The number of clusters to use for an IVF index (default: 1024).
+        :param m: The number of product quantization codes to use for an IVFPQ index (default: 8).
+        :param ef_construction: The size of the entry list for an HNSW index (default: 100).
+        :param ef_search: The search list size for an HNSW index (default: 64).
+        :param use_gpu: Whether to use GPU acceleration for the FAISS index (default: False).
+        :param gpu_device: The ID of the GPU device to use (default: 0).
+        :param forgetfulness_factor: The percentage of items to remove during random forgetting (default: 1).
+        """
         # Initialize memory parameters
         self.memory_size = memory_size
         self.embedding_dim = embedding_dim
@@ -58,7 +72,12 @@ class AssociativeMemory(Memory):
         self.input_vectors = np.zeros((memory_size, embedding_dim), dtype=np.float32)
 
     def add(self, embeddings: npt.NDArray[Any]) -> None:
-        """Add embeddings to the memory."""
+        """
+        Add embeddings to the memory.
+
+        :param embeddings: A 2D array of shape (n, embedding_dim) containing the embeddings to be added,
+                           where n is the number of items to add.
+        """
         n_added = self.index.ntotal  # Existing number of added items
         n_to_add = embeddings.shape[0]  # Number of items to add
 
@@ -69,7 +88,12 @@ class AssociativeMemory(Memory):
         self.index.add(embeddings)
 
     def remove(self, ids: npt.NDArray[Any]) -> None:
-        """Remove embeddings with the specified IDs from the memory."""
+        """
+        Remove embeddings with the specified IDs from the memory.
+
+        :param ids: A 1D array of shape (n,) containing the indices of the items to be removed,
+                    where n is the number of items to remove.
+        """
         if self.index_type != "flat":
             raise ValueError(
                 f"Update is not implemented in FAISS this type of index, use flat instad of: {self.index_type}"
@@ -80,7 +104,14 @@ class AssociativeMemory(Memory):
         self.input_vectors = np.delete(self.input_vectors, ids, axis=0)
 
     def update(self, ids: npt.NDArray[Any], updated_embeddings: npt.NDArray[Any]) -> None:
-        """Update embeddings with the specified IDs in the memory."""
+        """
+        Update embeddings with the specified IDs in the memory.
+
+        :param ids: A 1D array of shape (n,) containing the indices of the items to be updated,
+                    where n is the number of items to update.
+        :param updated_embeddings: A 2D array of shape (n, embedding_dim) containing the updated embeddings,
+                                   where n is the number of items to update.
+        """
         if self.index_type != "flat":
             raise ValueError(
                 f"Update is not implemented in FAISS this type of index, use flat instad of: {self.index_type}"
@@ -89,7 +120,14 @@ class AssociativeMemory(Memory):
         self.add(updated_embeddings)
 
     def search(self, query_vectors: npt.NDArray[Any], k: int = 10) -> Any:
-        """Search the memory for the top k closest embeddings to the query vectors."""
+        """
+        Search the memory for the top k closest embeddings to the query vectors.
+
+        :param query_vectors: A 2D array of shape (n, embedding_dim) containing the query vectors,
+                              where n is the number of query vectors.
+        :param k: The number of nearest neighbors to return for each query.
+        :return: A tuple containing two 2D arrays for indices and distances, both of shape (n, k).
+        """
         distances, indices = self.index.search(query_vectors, k)
         return indices, distances
 
@@ -153,12 +191,23 @@ class AssociativeMemory(Memory):
         return nearly_zero_vectors
 
     def get_all_embeddings(self) -> npt.NDArray[Any]:
-        """Retrieve all embeddings stored in the memory."""
+        """
+        Retrieve all embeddings stored in the memory.
+
+        Returns:
+        npt.NDArray[Any]: A 2D array of shape (n, embedding_dim) containing all stored embeddings,
+                          where n is the number of stored items.
+        """
         # Return the stored input_vectors directly
         return self.input_vectors[: self.index.ntotal]  # Use slicing to get only the added items
 
-    def __getitem__(self, index: int) -> npt.NDArray[Any]:
-        """Retrieve the input vector at the specified index."""
+    def __getitem__(self, index: int) -> Any:
+        """
+        Retrieve the input vector at the specified index.
+
+        :param index: The index of the input vector to retrieve.
+        :return: A 1D array of shape (embedding_dim,) containing the input vector.
+        """
         if index >= self.index.ntotal:
             raise IndexError("Index out of range.")
         return self.input_vectors[index]

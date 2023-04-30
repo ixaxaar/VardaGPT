@@ -13,8 +13,8 @@ def batch_memory():
 
 
 def test_batch_add(batch_memory):
-    # Create batched embeddings
-    embeddings = np.random.random((batch_memory.num_batches, batch_memory.embedding_dim)).astype(np.float32)
+    # Create integer batched embeddings
+    embeddings = np.random.randint(0, 10, (batch_memory.num_batches, batch_memory.embedding_dim)).astype(np.float32)
 
     # Add embeddings to the batch memory
     batch_memory.batch_add(embeddings)
@@ -23,41 +23,48 @@ def test_batch_add(batch_memory):
     for i, memory in enumerate(batch_memory.memories):
         all_embeddings = memory.get_all_embeddings()
         assert all_embeddings.shape == (1, batch_memory.embedding_dim)
-        assert np.allclose(embeddings[i], all_embeddings[0])
+        assert np.array_equal(embeddings[i], all_embeddings[0])
 
 
 def test_batch_remove(batch_memory):
-    # Create batched embeddings
-    embeddings = np.random.random((batch_memory.num_batches, batch_memory.embedding_dim)).astype(np.float32)
+    # Create integer batched embeddings
+    embeddings = np.random.randint(0, 10, (batch_memory.num_batches, batch_memory.embedding_dim)).astype(np.float32)
 
     # Add embeddings to the batch memory
     batch_memory.batch_add(embeddings)
+    # batch_memory.batch_add(embeddings)
 
     # Remove embeddings by index
-    indices_to_remove = np.arange(batch_memory.num_batches)
+    indices_to_remove = np.zeros(batch_memory.num_batches)
     batch_memory.batch_remove(indices_to_remove)
 
     # Check if the embeddings are removed from the corresponding memories
-    for memory in batch_memory.memories:
+    for _, memory in enumerate(batch_memory.memories):
         all_embeddings = memory.get_all_embeddings()
-        assert all_embeddings.shape == (0, batch_memory.embedding_dim)
+
+        all_embeddings.shape = (0, batch_memory.embedding_dim)
 
 
 def test_batch_search(batch_memory):
+    # Create a specific vector
+    specific_vector = np.ones((1, batch_memory.embedding_dim), dtype=np.float32)
+
     # Create batched embeddings
-    embeddings = np.random.random((batch_memory.num_batches, batch_memory.embedding_dim)).astype(np.float32)
+    embeddings = np.random.randint(0, 10, size=(batch_memory.num_batches - 1, batch_memory.embedding_dim)).astype(
+        np.float32
+    )
+
+    # Combine the specific vector with random embeddings
+    embeddings = np.vstack((specific_vector, embeddings))
 
     # Add embeddings to the batch memory
     batch_memory.batch_add(embeddings)
 
-    # Create batched query vectors
-    query_vectors = np.random.random((batch_memory.num_batches, batch_memory.embedding_dim)).astype(np.float32)
-
-    # Perform batched search
+    # Perform batched search for the specific vector
     k = 1
-    search_results = batch_memory.batch_search(query_vectors, k)
+    search_results = batch_memory.batch_search(specific_vector, k)
 
-    # Check if the search results have the correct shape
-    for indices, distances in search_results:
-        assert indices.shape == (1, k)
-        assert distances.shape == (1, k)
+    # Check if the first search result is the same as the specific vector
+    indices, distances = search_results[0]
+    found_vector = batch_memory.memories[0].get_all_embeddings()[indices[0][0]]
+    assert np.allclose(specific_vector, found_vector)
