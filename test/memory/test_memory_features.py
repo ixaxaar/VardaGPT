@@ -1,8 +1,18 @@
 # type: ignore
 import numpy as np
+import torch
 import pytest
 
 from src.memory.associative import AssociativeMemory
+
+
+@pytest.fixture(params=["numpy", "torch"])
+def embeddings(request):
+    embeddings_np = np.random.rand(1000, 128).astype(np.float32)
+    if request.param == "numpy":
+        return embeddings_np
+    else:
+        return torch.from_numpy(embeddings_np)
 
 
 @pytest.fixture
@@ -20,40 +30,38 @@ def memory():
     return AssociativeMemory(memory_size, embedding_dim)
 
 
-def test_age_memory(forgetful_memory):
+def test_age_memory(embeddings, forgetful_memory):
     # Add some embeddings to the memory
-    embeddings = np.random.random((10, forgetful_memory.embedding_dim)).astype(np.float32)
-    forgetful_memory.add(embeddings)
+    forgetful_memory.add(embeddings[:10])
 
     # Age the memory
     forgetful_memory.age_memory(0.5)
 
     # Check if the embeddings have been aged
     aged_embeddings = forgetful_memory.get_all_embeddings()
-    assert aged_embeddings.shape == embeddings.shape
-    assert np.allclose(embeddings * 0.5, aged_embeddings)
+    assert aged_embeddings.shape == embeddings[:10].shape
+    assert np.allclose(embeddings[:10] * 0.5, aged_embeddings)
 
 
-def test_forget_randomly(forgetful_memory):
+def test_forget_randomly(embeddings, forgetful_memory):
     # Add some embeddings to the memory
-    embeddings = np.random.random((100, forgetful_memory.embedding_dim)).astype(np.float32)
-    forgetful_memory.add(embeddings)
+    forgetful_memory.add(embeddings[:100])
 
     # Forget randomly
     forgetful_memory.forget_randomly()
 
     # Check if the number of embeddings in memory has decreased
     remaining_embeddings = forgetful_memory.get_all_embeddings()
-    expected_remaining_embeddings = int(embeddings.shape[0] * (1 - forgetful_memory.forgetfulness_factor))
+    expected_remaining_embeddings = int(embeddings[:100].shape[0] * (1 - forgetful_memory.forgetfulness_factor))
     assert (
         remaining_embeddings.shape[0] == expected_remaining_embeddings
         or remaining_embeddings.shape[0] == expected_remaining_embeddings + 1
     )
 
 
-def test_garbage_collect(memory):
+def test_garbage_collect(embeddings, memory):
     # Add some nearly zero embeddings to the memory
-    nearly_zero_embeddings = np.random.random((10, memory.embedding_dim)).astype(np.float32) * 1e-7
+    nearly_zero_embeddings = embeddings[:10] * 1e-7
     memory.add(nearly_zero_embeddings)
 
     # Garbage collect

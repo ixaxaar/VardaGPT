@@ -1,7 +1,8 @@
 import faiss
 import numpy as np
 import numpy.typing as npt
-from typing import Any
+from typing import Any, Union
+import torch
 
 from . import Memory
 
@@ -38,6 +39,8 @@ class AssociativeMemory(Memory):
         self.memory_size = memory_size
         self.embedding_dim = embedding_dim
         self.forgetfulness_factor = forgetfulness_factor
+        self.use_gpu = use_gpu
+        self.gpu_device = gpu_device
 
         # Create the appropriate Faiss index based on the specified type
         if index_type == "flat":
@@ -71,13 +74,25 @@ class AssociativeMemory(Memory):
         # Initialize an empty array to store the input vectors
         self.input_vectors = np.zeros((memory_size, embedding_dim), dtype=np.float32)
 
-    def add(self, embeddings: npt.NDArray[Any]) -> None:
+    def _to_numpy(self, data: Union[npt.NDArray[Any], torch.Tensor]) -> Union[npt.NDArray[Any], torch.Tensor]:
+        """
+        Convert input data to a NumPy array if it's a PyTorch tensor and not using GPU.
+
+        :param data: Input data to be converted. Can be either a NumPy array or a PyTorch tensor.
+        :return: Converted data as a NumPy array or a PyTorch tensor.
+        """
+        if isinstance(data, torch.Tensor) and not self.use_gpu:
+            return data.detach().cpu().numpy()  # type: ignore
+        return data
+
+    def add(self, embeddings: Union[npt.NDArray[Any], torch.Tensor]) -> None:
         """
         Add embeddings to the memory.
 
         :param embeddings: A 2D array of shape (n, embedding_dim) containing the embeddings to be added,
-                           where n is the number of items to add.
+                           where n is the number of items to add. Can be either a NumPy array or a PyTorch tensor.
         """
+        embeddings = self._to_numpy(embeddings)
         n_added = self.index.ntotal  # Existing number of added items
         n_to_add = embeddings.shape[0]  # Number of items to add
 
@@ -85,15 +100,21 @@ class AssociativeMemory(Memory):
         self.input_vectors[n_added : n_added + n_to_add] = embeddings
 
         # Add embeddings to the index
-        self.index.add(embeddings)
+        if self.use_gpu:
+            ptr = faiss.torch_utils.swig_ptr_from_FloatTensor(embeddings)
+            self.index.add_c(n_to_add, ptr)
+        else:
+            self.index.add(embeddings)
 
-    def remove(self, ids: npt.NDArray[Any]) -> None:
+    def remove(self, ids: Union[npt.NDArray[Any], torch.Tensor]) -> None:
         """
         Remove embeddings with the specified IDs from the memory.
 
         :param ids: A 1D array of shape (n,) containing the indices of the items to be removed,
-                    where n is the number of items to remove.
+                    where n is the number of items to remove. Can be either a NumPy array or a PyTorch tensor.
         """
+        ids = self._to_numpy(ids)
+
         if self.index_type != "flat":
             raise ValueError(
                 f"Update is not implemented in FAISS this type of index, use flat instad of: {self.index_type}"
@@ -103,15 +124,20 @@ class AssociativeMemory(Memory):
         # Remove input vectors from the input_vectors array
         self.input_vectors = np.delete(self.input_vectors, ids, axis=0)
 
-    def update(self, ids: npt.NDArray[Any], updated_embeddings: npt.NDArray[Any]) -> None:
+    def update(
+        self, ids: Union[npt.NDArray[Any], torch.Tensor], updated_embeddings: Union[npt.NDArray[Any], torch.Tensor]
+    ) -> None:
         """
         Update embeddings with the specified IDs in the memory.
 
         :param ids: A 1D array of shape (n,) containing the indices of the items to be updated,
-                    where n is the number of items to update.
+                    where n is the number of items to update. Can be either a NumPy array or a PyTorch tensor.
         :param updated_embeddings: A 2D array of shape (n, embedding_dim) containing the updated embeddings,
-                                   where n is the number of items to update.
+                    where n is the number of items to update. Can be either a NumPy array or a PyTorch tensor.
         """
+        ids = self._to_numpy(ids)
+        updated_embeddings = self._to_numpy(updated_embeddings)
+
         if self.index_type != "flat":
             raise ValueError(
                 f"Update is not implemented in FAISS this type of index, use flat instad of: {self.index_type}"
@@ -119,17 +145,34 @@ class AssociativeMemory(Memory):
         self.remove(ids)
         self.add(updated_embeddings)
 
-    def search(self, query_vectors: npt.NDArray[Any], k: int = 10) -> Any:
+    def search(self, query_vectors: Any, k: int = 10) -> Any:
         """
         Search the memory for the top k closest embeddings to the query vectors.
 
-        :param query_vectors: A 2D array of shape (n, embedding_dim) containing the query vectors,
-                              where n is the number of query vectors.
+        :param query_vectors: A 2D array or tensor of shape (n, embedding_dim) containing the query vectors,
+                            where n is the number of query vectors.
         :param k: The number of nearest neighbors to return for each query.
-        :return: A tuple containing two 2D arrays for indices and distances, both of shape (n, k).
+        :return: A tuple containing two 2D arrays or tensors for indices and distances, both of shape (n, k).
         """
-        distances, indices = self.index.search(query_vectors, k)
-        return indices, distances
+        if self.use_gpu and isinstance(query_vectors, torch.Tensor):
+            n_query = query_vectors.shape[0]
+            distances = torch.empty((n_query, k), device=self.gpu_device)  # type: ignore
+            indices = torch.empty((n_query, k), dtype=torch.long, device=self.gpu_device)  # type: ignore
+
+            ptr_query = faiss.torch_utils.swig_ptr_from_FloatTensor(query_vectors)
+            ptr_distances = faiss.torch_utils.swig_ptr_from_FloatTensor(distances)
+            ptr_indices = faiss.torch_utils.swig_ptr_from_LongTensor(indices)
+            self.index.search_c(n_query, ptr_query, k, ptr_distances, ptr_indices)
+
+            return indices, distances
+        else:
+            if isinstance(query_vectors, torch.Tensor):
+                query_vectors = query_vectors.numpy()
+            distances, indices = self.index.search(query_vectors, k)
+            if isinstance(query_vectors, torch.Tensor):
+                return torch.from_numpy(indices), torch.from_numpy(distances)
+            else:
+                return indices, distances
 
     def age_memory(self, decay_factor: float = 0.99) -> None:
         """
