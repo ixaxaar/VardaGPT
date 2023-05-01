@@ -19,7 +19,7 @@ class AssociativeMemory(Memory):
         ef_search: int = 64,
         use_gpu: bool = False,
         gpu_device: int = 0,
-        forgetfulness_factor: float = 1,
+        forgetfulness_factor: float = 0.0001,
     ):
         """
         Initialize the associative memory.
@@ -174,7 +174,7 @@ class AssociativeMemory(Memory):
             else:
                 return indices, distances
 
-    def age_memory(self, decay_factor: float = 0.99) -> None:
+    def age_memory(self, decay_factor: float = 0.999) -> None:
         """
         Age the memory embeddings by multiplying them with a decay factor.
 
