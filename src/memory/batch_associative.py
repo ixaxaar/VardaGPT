@@ -34,16 +34,17 @@ class BatchAssociativeMemory:
 
     def batch_add(self, embeddings: Union[npt.NDArray[Any], "torch.Tensor"]) -> None:
         """
-        Perform a batch of add operations.
+        Perform a batch of add operations. Assumes a single token per batch.
 
-        :param embeddings: A 2D array of shape (num_batches, embedding_dim) containing the embeddings to be added.
+        :param embeddings: A 2D array of shape (num_batches, embedding_dim) containing the embeddings
+                           of single tokens to be added for each batch.
         """
         for memory, batch_embeddings in zip(self.memories, embeddings):
             memory.add(batch_embeddings.reshape(1, -1))
 
     def batch_remove(self, ids: Union[npt.NDArray[Any], "torch.Tensor"]) -> None:
         """
-        Perform a batch of remove operations.
+        Perform a batch of remove operations. Assumes a single token per batch.
 
         :param ids: A 1D array of shape (num_batches,) containing the indices of the items to be removed.
         """
@@ -54,9 +55,10 @@ class BatchAssociativeMemory:
         self, query_vectors: Union[npt.NDArray[Any], "torch.Tensor"], k: int = 10
     ) -> List[Tuple[npt.NDArray[np.int64], npt.NDArray[np.float32]]]:
         """
-        Perform a batch of search operations.
+        Perform a batch of search operations. Assumes a single token per batch.
 
-        :param query_vectors: A 2D array of shape (num_batches, embedding_dim) containing the query vectors.
+        :param query_vectors: A 2D array of shape (num_batches, embedding_dim) containing the query vectors
+                              of single tokens for each batch.
         :param k: The number of nearest neighbors to return for each query.
         :return: A list of tuples, each containing two 1D arrays of shape (1,k) for indices and distances.
         """

@@ -93,45 +93,30 @@ The associative memory model:
 
 ```plantuml
 @startuml
-title Forward Function
 
-actor "input_vectors" as input_vectors #AFEEEE
-actor "memory_input" as memory_input #AFEEEE
+rectangle "Input Vectors" as input #b3e0ff
+rectangle "Memory" as memory #f2d7b9
+rectangle "Concatenated Input" as concatenated_input #f6e3c6
+rectangle "Fully Connected Layer (fc)" as fc #e5ebf0
+rectangle "GPT-2 Transformer" as transformer #c6e0b4
+rectangle "GPT-2 LM Head" as lm_head #c9daf8
+rectangle "Fully Connected Layer\n(fc_storable_vector)" as fc_storable_vector #c9daf8
+rectangle "Fully Connected Layer\n(fc_store_decision)" as fc_store_decision #c9daf8
 
-note right of input_vectors
-  (batch_size, seq_len, embedding_dim)
-end note
+input -down-> memory : Perform search in memory
+memory -down-> concatenated_input : Concatenate search results with input vectors
+concatenated_input -down-> fc : Apply fully connected layer (fc)
+fc -down-> transformer : Pass through GPT-2 transformer
+transformer -down-> lm_head : Apply GPT-2 lm_head
+transformer -right-> fc_storable_vector : Apply fully connected layer (fc_storable_vector)
+transformer -right-> fc_store_decision : Apply fully connected layer (fc_store_decision)
 
-note right of memory_input
-  (batch_size, seq_len, embedding_dim)
-end note
-
-rectangle "if memory_input is provided" {
-  input_vectors -down-> concat : "concatenate input_vectors\nand search_results"
-  memory_input -> search : "search(memory_input)"
-  search --> embeddings : "get_all_embeddings()"
-  embeddings -> search_results : "search_results"
-  search_results -up-> concat
-}
-
-concat -> transformer : "pass through GPT-2 transformer"
-transformer --> hidden_states : "hidden_states"
-note right of hidden_states
-  (batch_size, seq_len, embedding_dim)
-end note
-
-hidden_states --> logits : "get logits"
-note right of logits
-  (batch_size, seq_len, vocab_size)
-end note
-
-hidden_states --> decisions_and_vectors : "calculate decisions\nand vectors"
-decisions_and_vectors --> store_memory : "store storable_vector"
-decisions_and_vectors --> delete_memory : "delete embeddings"
-
-logits --> return_logits : "return logits"
+note right of fc_storable_vector: Calculate storable vector\n and store decision
+note right of fc_store_decision: Store the storable_vector in\n the associative memory if\n the store_decision is affirmative
+note bottom of lm_head: Return logits
 
 @enduml
+
 ```
 
 </details>
