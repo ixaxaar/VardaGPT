@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import GPT2LMHeadModel, GPT2Config
 from ..memory.batch_associative import BatchAssociativeMemory
-from typing import Optional, Any
+from typing import Any
 
 
 class VardaGPTAssociative(nn.Module):
@@ -16,6 +16,7 @@ class VardaGPTAssociative(nn.Module):
         num_search_results: int = 5,
         use_gpu: bool = False,
         batch_size: int = 1,
+        forgetfulness_factor: float = 0.001,
     ):
         """
         Initialize a GPT-2 model with associative memory.
@@ -45,53 +46,63 @@ class VardaGPTAssociative(nn.Module):
             index_type=index_type,
             num_clusters=num_clusters,
             use_gpu=use_gpu,
+            forgetfulness_factor=forgetfulness_factor,
         )
 
         # Define dimensions for search results and output
         self.search_results_dim = memory_dim * num_search_results
 
-        # Linear layers for concatenated input, storable vector, store decision, delete decision, and deletable vector
+        # Linear layers for concatenated input, storable vector, and store decision
         self.fc = nn.Linear(self.gpt2_config.n_embd + self.search_results_dim, self.gpt2_config.n_embd)
-
-        # Linear layers for concatenated input, storable vector and store decision
         self.fc_storable_vector = nn.Linear(self.gpt2_config.n_embd, memory_dim)
         self.fc_store_decision = nn.Linear(self.gpt2_config.n_embd, 1)
-
-        # Linear layers for deletable vector and delete decision
-        self.fc_deletable_vector = nn.Linear(self.gpt2_config.n_embd, memory_dim)
-        self.fc_delete_decision = nn.Linear(self.gpt2_config.n_embd, 1)
 
         # Move all layers to the device
         self.to(self.device)
 
+        self.memory_dim = memory_dim
         self.num_search_results = num_search_results
+        self.forgetfulness_factor = forgetfulness_factor
 
-    def forward(self, input_vectors: torch.Tensor, memory_input: Optional[torch.Tensor] = None) -> Any:
+    def forward(self, input_vectors: torch.Tensor) -> Any:
         """
-        Forward pass through the GPT-2 model with associative memory.
+        Perform a forward pass through the GPT-2 model with associative memory.
 
-        :param input_vectors: A tensor of shape (batch_size, seq_len, embedding_dim) containing the input embeddings.
-        :param memory_input: An optional tensor of shape (batch_size, memory_dim) containing the query embeddings for
-                             the associative memory search. Default is None.
-        :return: A tensor of shape (batch_size, seq_len, vocab_size) containing the logits from the GPT-2 model.
+        :param input_vectors: A 3D tensor of shape (batch_size, sequence_length, input_dim) containing
+            the input vectors for each token in the batch.
+        :param memory_input: A 2D tensor of shape (batch_size, memory_dim) containing the memory input for each item
+            in the batch. If not provided, memory will not be used.
+        :return: A 3D tensor of shape (batch_size, sequence_length, vocab_size) containing
+        the logits from the GPT-2 model.
         """
         input_vectors = input_vectors.to(self.device)
         batch_size, seq_len, _ = input_vectors.shape
 
-        if memory_input is not None:
-            # Search for relevant results for each item in the batch
-            search_results_list = self.memory.batch_search(memory_input, self.num_search_results)
+        # Initialize search_results tensor with the correct shape
+        search_results = torch.zeros((batch_size, seq_len, self.search_results_dim), device=self.device)
 
+        # Search for relevant results for each item in the batch
+        for t in range(seq_len):
+            search_results_list = self.memory.batch_search(input_vectors[:, t, :].squeeze(1), self.num_search_results)
+            retrieved_embeddings_list = []
             # Retrieve and concatenate search results with input vectors
-            search_results = torch.empty((0, self.search_results_dim), device=self.device)
-            for indices, _ in search_results_list:
-                retrieved_embeddings = self.memory.get_all_embeddings()[indices].view(-1, self.search_results_dim)
-                search_results = torch.cat([search_results, retrieved_embeddings], dim=0)
+            for ctr, (indices, _) in enumerate(search_results_list):
+                retrieved_embeddings = torch.cat(
+                    [
+                        self.memory.memories[ctr][i].unsqueeze(0)
+                        if i >= 0
+                        else torch.zeros(self.memory_dim).unsqueeze(0)
+                        for i in indices.squeeze()
+                    ],
+                    dim=0,
+                )
+                # Update the corresponding search_results tensor
+                retrieved_embeddings_list.append(retrieved_embeddings)
+            search_results[:, t, :] = torch.cat(retrieved_embeddings_list, dim=0).view(batch_size, -1)
 
-            search_results = search_results.view(batch_size, seq_len, -1)
-            concatenated_input = torch.cat([input_vectors, search_results], dim=-1)
+        concatenated_input = torch.cat([input_vectors, search_results], dim=-1)
 
-            input_vectors = self.fc(concatenated_input)
+        input_vectors = self.fc(concatenated_input)
 
         # Pass input_vectors through GPT-2 model's transformer and obtain hidden states
         transformer_outputs = self.gpt2_model.transformer(inputs_embeds=input_vectors)
@@ -100,29 +111,21 @@ class VardaGPTAssociative(nn.Module):
         # Get logits from hidden states
         logits = self.gpt2_model.lm_head(hidden_states)
 
-        # Calculate storable vector, store decision, delete decision, and deletable vector
+        # Calculate storable vector and store decision
         storable_vector = self.fc_storable_vector(hidden_states)
         store_decision = self.fc_store_decision(hidden_states)
-        delete_decision = self.fc_delete_decision(hidden_states)
-        deletable_vector = self.fc_deletable_vector(hidden_states)
 
         # Store the storable_vector in the associative memory if the store_decision is affirmative
         store_threshold = 0.5  # Define a threshold for store decision
         store_mask = (store_decision > store_threshold).float()
         storable_vector_to_store = storable_vector * store_mask
-        self.memory.batch_add(storable_vector_to_store.view(batch_size, -1).detach())
 
-        # Calculate the L2 distances between deletable_vector and search_results only if memory_input is provided
-        if memory_input is not None:
-            expanded_deletable_vector = deletable_vector.unsqueeze(1).expand(-1, self.num_search_results, -1)
-            expanded_search_results = search_results.unsqueeze(0).expand(input_vectors.size(0), -1, -1)
-            squared_distances = torch.sum((expanded_deletable_vector - expanded_search_results) ** 2, dim=-1)
-            l2_distances = torch.sqrt(squared_distances)
+        for i in range(seq_len):
+            storable_vector_to_store_i = storable_vector_to_store[:, i, :].view(batch_size, -1).detach()
+            self.memory.batch_add(storable_vector_to_store_i)
 
-            # Remove embeddings from the memory if the L2 distance is above a threshold
-            threshold = 0.5
-            indices_to_delete = torch.nonzero(l2_distances > threshold, as_tuple=True)
-            indices_to_delete_flat = indices_to_delete[0].view(-1)
-            self.memory.batch_remove(indices_to_delete_flat)
+        # Randomly forget items from the memory with a specified probability
+        for memory in self.memory.memories:
+            memory.forget_randomly()
 
         return logits

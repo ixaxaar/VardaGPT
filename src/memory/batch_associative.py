@@ -58,7 +58,7 @@ class BatchAssociativeMemory:
 
         :param query_vectors: A 2D array of shape (num_batches, embedding_dim) containing the query vectors.
         :param k: The number of nearest neighbors to return for each query.
-        :return: A list of tuples, each containing two 1D arrays of shape (k,) for indices and distances.
+        :return: A list of tuples, each containing two 1D arrays of shape (1,k) for indices and distances.
         """
         results = []
         for memory, batch_query_vector in zip(self.memories, query_vectors.reshape(-1, 1, self.embedding_dim)):
