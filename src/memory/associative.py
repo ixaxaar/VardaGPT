@@ -254,3 +254,11 @@ class AssociativeMemory(Memory):
         if index >= self.index.ntotal:
             raise IndexError("Index out of range.")
         return self.input_vectors[index]
+
+    def size(self) -> int:
+        """
+        Get the number of items stored in the memory.
+
+        :return: The number of items stored in the memory.
+        """
+        return int(self.index.ntotal)
