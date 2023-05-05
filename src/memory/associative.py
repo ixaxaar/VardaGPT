@@ -1,7 +1,8 @@
+from typing import Any, Union
+
 import faiss
 import numpy as np
 import numpy.typing as npt
-from typing import Any, Union
 import torch
 
 from . import Memory

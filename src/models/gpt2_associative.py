@@ -1,8 +1,10 @@
+from typing import Any
+
 import torch
 import torch.nn as nn
-from transformers import GPT2LMHeadModel, GPT2Config
-from ..memory.batch_associative import BatchAssociativeMemory
-from typing import Any
+from transformers import GPT2Config, GPT2LMHeadModel
+
+from memory.batch_associative import BatchAssociativeMemory
 
 
 class VardaGPTAssociative(nn.Module):

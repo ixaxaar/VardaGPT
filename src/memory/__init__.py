@@ -1,8 +1,8 @@
-from typing import Optional, Any
+from typing import Any, Optional
 
-from faiss import IndexIVF
 import numpy as np
 import numpy.typing as npt
+from faiss import IndexIVF
 
 
 class Memory:

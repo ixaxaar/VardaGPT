@@ -1,6 +1,7 @@
+from typing import Any, List, Tuple, Union
+
 import numpy as np
 import numpy.typing as npt
-from typing import Any, List, Tuple, Union
 
 try:
     import torch

@@ -4,6 +4,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [VardaGPT](#vardagpt)
+  - [TLDR - Training](#tldr---training)
+    - [Requirements](#requirements)
+    - [Usage](#usage)
   - [Overview](#overview)
   - [Models](#models)
   - [Training, Evaluation, and Fine-tuning Process](#training-evaluation-and-fine-tuning-process)
@@ -15,7 +18,7 @@
   - [Prerequisites](#prerequisites)
   - [Setup](#setup)
   - [Directory Structure](#directory-structure)
-  - [Usage](#usage)
+  - [Usage](#usage-1)
     - [Data Preparation](#data-preparation)
     - [Training](#training)
     - [Evaluation](#evaluation)
@@ -32,6 +35,64 @@ VardaGPT is a memory-enhanced GPT-2 model powered by Hugging Face Transformers
 and FAISS. Inspired by J.R.R. Tolkien's Silmarillion, VardaGPT aims to provide
 guidance and knowledge through its memory-augmented text generation
 capabilities.
+
+## TLDR - Training
+
+The `VardaGPTAssociative` model combines GPT-2 with an associative memory to
+improve context retrieval. This repository includes a script to train this model
+on the WikiText-2 dataset.
+
+### Requirements
+
+- Python 3.7+
+- PyTorch 1.8.1+
+- torchtext 0.9.1
+- transformers 4.10.0
+- rich 10.3.0
+- faiss-cpu 1.7.1
+
+To install the required packages, you can use the following command:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Usage
+
+To train the `VardaGPTAssociative` model on the WikiText-2 dataset, use the
+provided training script (`train_varda_gpt_associative.py`). You can customize
+the training settings by passing command-line arguments. Here's a basic example:
+
+```bash
+python train_varda_gpt_associative.py --epochs 5 --learning_rate 1e-4 --use_gpu
+```
+
+Available command-line arguments:
+
+- `--epochs`: Number of epochs to train the model (default: 5).
+- `--learning_rate`: Learning rate for the optimizer (default: 1e-4).
+- `--memory_size`: Maximum number of items the associative memory can store
+  (default: 10000).
+- `--memory_dim`: Dimensionality of the embeddings stored in the associative
+  memory (default: 768).
+- `--index_type`: Type of index used for the associative memory (default:
+  "flat").
+- `--num_clusters`: Number of clusters to use for the memory if the index type
+  is "ivf" (default: 1024).
+- `--num_search_results`: Number of search results to return from the
+  associative memory (default: 5).
+- `--use_gpu`: Whether to use the GPU for the model if available (default:
+  False).
+- `--batch_size`: Batch size for training (default: 1).
+- `--forgetfulness_factor`: Forgetfulness factor for the associative memory
+  (default: 0.001).
+
+During training, the script will periodically print the training loss,
+validation loss, and elapsed time for each epoch, along with a progress bar for
+each training step.
+
+After training, you can use the trained model for your specific use case, such
+as text generation or fine-tuning for a particular task.
 
 ## Overview
 

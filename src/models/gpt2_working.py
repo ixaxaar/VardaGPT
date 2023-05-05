@@ -1,8 +1,10 @@
+from typing import Any, Optional
+
 import torch
 import torch.nn as nn
-from transformers import GPT2LMHeadModel, GPT2Config
+from transformers import GPT2Config, GPT2LMHeadModel
+
 from memory.associative import AssociativeMemory
-from typing import Optional, Any
 
 
 class VardaGPTWorking(nn.Module):
