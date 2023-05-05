@@ -26,6 +26,10 @@ train:
 	source venv/bin/activate
 	python src/train.py
 
+train-parallel:
+	source venv/bin/activate
+	python src/train_parallel.py
+
 evaluate:
 	source venv/bin/activate
 	python src/evaluate.py
