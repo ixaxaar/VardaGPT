@@ -18,8 +18,8 @@ Now, what the heck should I build to test this? Why not try attaching a memory
 module to a GPT? I've seen some folks on the internet complain about the "low
 memory" problem of language models. I've also used FAISS and FLANN before, so I
 am familiar with how to technically achieve this. Whether it will actually work
-or not—well, my 1080Ti is like an old man now, and I don't have the money to
-train this thing on AWS anyway. Let's aim for unit tests to work then.
+or not—well, my 1080Ti is on its deathbed with a broken fan, and I don't have
+the 💸 to train this thing on AWS anyway. Let's aim for unit tests to work then.
 
 ## Process 🏃
 
