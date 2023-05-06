@@ -78,7 +78,8 @@ frustrated while making ChatGPT fix the code in a certain way.
 
 It was more like handholding a fresh grad who had absorbed all of human
 knowledge but needed someone to tie various parts of that knowledge to create
-something useful.
+something useful. Also ChatGPT is bad at dealing with abstractions beyond 2
+layers.
 
 ChatGPT is definitely a productivity multiplier. I think it is rather a
 differential productivity multiplier, as it would enhance more the capabilities
